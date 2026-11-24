@@ -583,6 +583,9 @@
         <button type="button" onclick="executePtpAction('PREVIEW')" class="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold px-5 py-3 rounded-xl shadow-sm flex items-center justify-center gap-2 transition">
           <i data-lucide="eye" class="w-4 h-4"></i> Print Preview
         </button>
+        <button type="button" onclick="executePtpAction('PRINT')" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-3 rounded-xl shadow-sm flex items-center justify-center gap-2 transition">
+          <i data-lucide="printer" class="w-4 h-4"></i> Cetak ke Printer
+        </button>
         <button type="button" onclick="executePtpAction('PDF')" class="w-full sm:w-auto bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold px-6 py-3 rounded-xl shadow-sm flex items-center justify-center gap-2 transition">
           <i data-lucide="file-down" class="w-4 h-4"></i> Print PDF
         </button>
@@ -602,6 +605,7 @@
       <div id="previewModalBody" class="p-4 overflow-y-auto bg-slate-200 flex-1"></div>
       <div class="px-5 py-3 bg-slate-50 border-t flex justify-end gap-2">
         <button type="button" onclick="closePreviewModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold px-4 py-2 rounded-lg">Tutup</button>
+        <button type="button" onclick="printHtmlDirect(document.getElementById('previewModalBody').innerHTML)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2 rounded-lg">Cetak ke Printer</button>
         <button type="button" onclick="closePreviewModal(); executePtpAction('PDF');" class="bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold px-5 py-2 rounded-lg">Cetak PDF Sekarang</button>
       </div>
     </div>
@@ -628,7 +632,7 @@
   <!-- ===================================================================== -->
   <script>
     window.EPTP_CONFIG = {
-      APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzXRt6r0rsJzvRSEyOY_K-VwWwfoUXB-WjcSG2aAde_vGR_Tp3Ml9BmoZnuK5TahqNU/exec',
+      APPS_SCRIPT_URL: 'TEMPEL_URL_WEB_APP_APPS_SCRIPT_DI_SINI',
       SHOW_QUICK_LOGIN: false   // true hanya untuk uji coba internal; jangan aktifkan di repo publik
     };
 
@@ -1184,10 +1188,14 @@
 
     function executePtpAction(actionType) {
       const payload = collectFormData();
-      if (actionType === 'PREVIEW') payload.refFilesNew = [];
+      // PRINT = cetak langsung ke printer: server cukup membuat HTML (aksi PREVIEW), lalu browser mencetaknya
+      const directPrint = (actionType === 'PRINT');
+      const serverAction = directPrint ? 'PREVIEW' : actionType;
+      if (serverAction === 'PREVIEW') payload.refFilesNew = [];
       const titleMap = {
         SAVE: 'Menyimpan Data PTP...',
         PREVIEW: 'Menyiapkan Print Preview...',
+        PRINT: 'Menyiapkan Dokumen untuk Printer...',
         PDF: 'Mencetak Dokumen PDF PTP...'
       };
       showStatusModal(true, titleMap[actionType], 'Mohon tunggu sebentar, sedang terhubung ke Google Workspace.');
@@ -1204,7 +1212,10 @@
             refNewFiles = [];
             renderRefList();
           }
-          if (actionType === 'PREVIEW') {
+          if (directPrint) {
+            closeStatusModal();
+            printHtmlDirect(res.previewHtml);
+          } else if (actionType === 'PREVIEW') {
             closeStatusModal();
             document.getElementById('previewModalBody').innerHTML = res.previewHtml;
             document.getElementById('previewModal').classList.remove('hidden');
@@ -1224,7 +1235,7 @@
         .withFailureHandler(err => {
           showStatusModal(false, 'Terjadi Kesalahan', err.message || String(err));
         })
-        .handlePtpAction(actionType, payload);
+        .handlePtpAction(serverAction, payload);
     }
 
     function renderLogRegisterTable() {
@@ -1346,6 +1357,46 @@
 
     function closePreviewModal() {
       document.getElementById('previewModal').classList.add('hidden');
+    }
+
+    /**
+     * Cetak langsung ke printer lewat dialog cetak browser (pilih printer, jumlah salinan, dll.).
+     * Dokumen dicetak di iframe tersembunyi: ukuran A4 portrait, margin 8 mm, tanpa tampilan aplikasi.
+     */
+    function printHtmlDirect(innerHtml) {
+      if (!innerHtml) { showStatusModal(false, 'Tidak Ada Dokumen', 'Dokumen belum siap dicetak.'); return; }
+      const doc = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>PTP AF-PROD-014</title>' +
+        '<style>@page { size: A4 portrait; margin: 8mm; }' +
+        'html, body { margin: 0; padding: 0; background: #fff; }' +
+        '* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
+        '#printableArea { max-width: none !important; margin: 0 !important; }' +
+        'table { page-break-inside: avoid; }</style></head><body>' + innerHtml + '</body></html>';
+
+      const old = document.getElementById('printFrame');
+      if (old) old.remove();
+      const frame = document.createElement('iframe');
+      frame.id = 'printFrame';
+      frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+      document.body.appendChild(frame);
+
+      const fdoc = frame.contentWindow.document;
+      fdoc.open(); fdoc.write(doc); fdoc.close();
+
+      // Tunggu semua gambar (logo, foto, tanda tangan) selesai dimuat sebelum mencetak
+      const imgs = Array.from(fdoc.images || []);
+      const ready = Promise.all(imgs.map(im => im.complete ? Promise.resolve() :
+        new Promise(r => { im.onload = im.onerror = r; })));
+      ready.then(() => setTimeout(() => {
+        try {
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+        } catch (e) {
+          // Cadangan: buka di tab baru lalu cetak dari sana
+          const w = window.open('', '_blank');
+          if (w) { w.document.open(); w.document.write(doc); w.document.close(); w.focus(); setTimeout(() => w.print(), 400); }
+          else alert('Pop-up diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.');
+        }
+      }, 250));
     }
   </script>
 </body>
