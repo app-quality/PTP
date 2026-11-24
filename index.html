@@ -262,6 +262,15 @@
               <label class="block text-xs font-semibold text-slate-600 mb-1">Nomor Referensi Dokumen Sumber</label>
               <input type="text" id="noRefSumber" placeholder="Contoh: NCR-012 / No. Claim / No. Laporan Audit" class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs" />
             </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Upload Dokumen Referensi <span class="font-normal text-slate-400">(PDF, JPG, PNG, Word, Excel &bull; maks. 5 file, 5 MB/file)</span></label>
+              <label for="refFileInput" class="flex items-center justify-center gap-2 border-2 border-dashed border-slate-300 hover:border-blue-900 hover:bg-blue-50/40 rounded-lg px-3 py-3 text-xs text-slate-500 cursor-pointer transition">
+                <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+                <span>Klik untuk memilih file dokumen referensi</span>
+              </label>
+              <input type="file" id="refFileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" class="hidden" onchange="handleRefFiles(this)" />
+              <ul id="refFileList" class="mt-2 space-y-1.5"></ul>
+            </div>
           </div>
 
           <div class="border border-slate-200 rounded-xl p-4">
@@ -947,6 +956,69 @@
       editPtpFromLog(selectedNo);
     }
 
+    // ===== Dokumen Referensi (upload ke Google Drive lewat backend) =====
+    let refNewFiles = [];   // file baru yang akan diunggah saat Simpan / Print PDF
+    let refExisting = [];   // lampiran yang sudah tersimpan di Drive
+    const REF_MAX_FILES = 5, REF_MAX_BYTES = 5 * 1024 * 1024, REF_MAX_TOTAL_NEW = 10 * 1024 * 1024;
+    const REF_EXT = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
+
+    function handleRefFiles(input) {
+      const files = Array.from(input.files || []);
+      input.value = '';
+      const errors = [];
+      let totalNew = refNewFiles.reduce((s, f) => s + f.size, 0);
+      const accepted = [];
+      files.forEach(f => {
+        const ext = f.name.split('.').pop().toLowerCase();
+        if (!REF_EXT.includes(ext)) { errors.push(`${f.name}: tipe file tidak diizinkan`); return; }
+        if (f.size > REF_MAX_BYTES) { errors.push(`${f.name}: lebih dari 5 MB`); return; }
+        if (refExisting.length + refNewFiles.length + accepted.length >= REF_MAX_FILES) { errors.push(`${f.name}: batas ${REF_MAX_FILES} file tercapai`); return; }
+        if (totalNew + f.size > REF_MAX_TOTAL_NEW) { errors.push(`${f.name}: total unggahan baru melebihi 10 MB`); return; }
+        totalNew += f.size;
+        accepted.push(f);
+      });
+      Promise.all(accepted.map(f => new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = e => resolve({ name: f.name, size: f.size, data: e.target.result });
+        reader.readAsDataURL(f);
+      }))).then(list => {
+        refNewFiles = refNewFiles.concat(list);
+        renderRefList();
+        if (errors.length) showStatusModal(false, 'Sebagian file ditolak', errors.join('; '));
+      });
+    }
+
+    function renderRefList() {
+      const ul = document.getElementById('refFileList');
+      ul.innerHTML = '';
+      const addItem = (label, href, badge, badgeClass, onRemove) => {
+        const li = document.createElement('li');
+        li.className = 'flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs';
+        let nameEl;
+        if (href && href.startsWith('https://')) {
+          nameEl = document.createElement('a');
+          nameEl.href = href; nameEl.target = '_blank'; nameEl.rel = 'noopener noreferrer';
+          nameEl.className = 'text-blue-900 hover:underline truncate flex-1';
+        } else {
+          nameEl = document.createElement('span');
+          nameEl.className = 'text-slate-700 truncate flex-1';
+        }
+        nameEl.textContent = label;
+        const b = document.createElement('span');
+        b.className = 'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ' + badgeClass;
+        b.textContent = badge;
+        const x = document.createElement('button');
+        x.type = 'button'; x.title = 'Hapus';
+        x.className = 'text-rose-500 hover:text-rose-700 font-bold text-sm px-1';
+        x.innerHTML = '&times;';
+        x.onclick = onRemove;
+        li.append(nameEl, b, x);
+        ul.appendChild(li);
+      };
+      refExisting.forEach((a, i) => addItem(a.name, a.url, 'Tersimpan', 'bg-emerald-100 text-emerald-700', () => { refExisting.splice(i, 1); renderRefList(); }));
+      refNewFiles.forEach((f, i) => addItem(`${f.name} (${(f.size / 1024).toFixed(0)} KB)`, '', 'Akan diunggah', 'bg-amber-100 text-amber-700', () => { refNewFiles.splice(i, 1); renderRefList(); }));
+    }
+
     function restoreFormFromJson(d) {
       const textIds = [
         'acuan', 'namaTtdAuditor', 'tglTtdAuditor',
@@ -960,6 +1032,10 @@
         const el = document.getElementById(id);
         if (el) el.value = (d[id] === undefined || d[id] === null) ? '' : d[id];
       });
+
+      refExisting = Array.isArray(d.refAttachments) ? d.refAttachments : [];
+      refNewFiles = [];
+      renderRefList();
 
       if (d.statusEvaluasi) {
         document.querySelectorAll('input[name="statusEvaluasi"]').forEach(r => { r.checked = (r.value === d.statusEvaluasi); });
@@ -1025,6 +1101,7 @@
     function resetFormToNew() {
       document.getElementById('ptpForm').reset();
       base64FotoPart = '';
+      refExisting = []; refNewFiles = []; renderRefList();
       document.getElementById('fotoPreviewBox').innerHTML = '<span class="text-xs text-slate-400">Preview Foto</span>';
       Object.keys(sigPads).forEach(k => clearSig(k));
       initDefaultActionRows();
@@ -1047,6 +1124,8 @@
 
       return {
         isNewRecord: document.getElementById('modeBadge').textContent.includes('Baru'),
+        refAttachments: refExisting,
+        refFilesNew: refNewFiles.map(f => ({ name: f.name, data: f.data })),
         noReg: document.getElementById('noReg').value.trim(),
         tanggalTerbit: document.getElementById('tanggalTerbit').value,
         acuan: document.getElementById('acuan').value.trim(),
@@ -1102,6 +1181,7 @@
 
     function executePtpAction(actionType) {
       const payload = collectFormData();
+      if (actionType === 'PREVIEW') payload.refFilesNew = [];
       const titleMap = {
         SAVE: 'Menyimpan Data PTP...',
         PREVIEW: 'Menyiapkan Print Preview...',
@@ -1116,6 +1196,11 @@
 
       google.script.run
         .withSuccessHandler(res => {
+          if (actionType !== 'PREVIEW') {
+            if (res && Array.isArray(res.refAttachments)) refExisting = res.refAttachments;
+            refNewFiles = [];
+            renderRefList();
+          }
           if (actionType === 'PREVIEW') {
             closeStatusModal();
             document.getElementById('previewModalBody').innerHTML = res.previewHtml;
