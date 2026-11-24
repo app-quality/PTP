@@ -628,7 +628,7 @@
   <!-- ===================================================================== -->
   <script>
     window.EPTP_CONFIG = {
-      APPS_SCRIPT_URL: 'TEMPEL_URL_WEB_APP_APPS_SCRIPT_DI_SINI',
+      APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzXRt6r0rsJzvRSEyOY_K-VwWwfoUXB-WjcSG2aAde_vGR_Tp3Ml9BmoZnuK5TahqNU/exec',
       SHOW_QUICK_LOGIN: false   // true hanya untuk uji coba internal; jangan aktifkan di repo publik
     };
 
@@ -695,7 +695,9 @@
 
       // Cek sesi login tersimpan di browser
       const savedSession = sessionStorage.getItem('eptp_user_session');
-      if (savedSession) {
+      if (savedSession && !sessionStorage.getItem('eptp_token')) {
+        sessionStorage.removeItem('eptp_user_session');   // tanpa token server = tidak sah
+      } else if (savedSession) {
         try {
           applyAuthenticatedUser(JSON.parse(savedSession));
         } catch (e) {
@@ -759,13 +761,14 @@
           })
           .verifyUserLogin(username, password);
       } else {
-        // Simulasi lokal jika dibuka di luar Google Apps Script
+        // Backend belum terhubung (APPS_SCRIPT_URL belum diisi / tidak valid).
+        // Login TIDAK boleh lolos tanpa verifikasi server.
         btn.disabled = false;
         btn.innerHTML = '<i data-lucide="log-in" class="w-4 h-4"></i><span>Masuk ke Aplikasi</span>';
         lucide.createIcons();
-        const demoUser = { username, fullName: username.toUpperCase(), dept: 'Departemen', role: 'STAFF' };
-        sessionStorage.setItem('eptp_user_session', JSON.stringify(demoUser));
-        applyAuthenticatedUser(demoUser);
+        document.getElementById('loginErrorText').textContent =
+          'Server belum terhubung. Isi APPS_SCRIPT_URL di index.html dengan URL Web App (berakhiran /exec).';
+        errBox.classList.remove('hidden');
       }
     }
 
