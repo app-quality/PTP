@@ -1224,10 +1224,13 @@
             showStatusModal(false, 'Data Tersimpan!', res.message);
           } else if (actionType === 'PDF') {
             initAppMetadata();
+            const pageNote = (res.pdfPages === 1) ? ' (1 halaman).' :
+              ' PERHATIAN: mesin PDF Google menghasilkan ' + (res.pdfPages || 'jumlah tidak diketahui') +
+              ' halaman. Untuk hasil 1 halaman dengan margin rata, gunakan tombol "Cetak ke Printer" lalu pilih "Simpan sebagai PDF".';
             showStatusModal(
               false,
               'PDF PTP Berhasil Dicetak!',
-              `Dokumen PDF untuk No. Reg. ${res.noReg} telah tersimpan di Google Drive & Log Register.`,
+              `Dokumen PDF untuk No. Reg. ${res.noReg} telah tersimpan di Google Drive & Log Register.` + pageNote,
               `<a href="${res.pdfUrl}" target="_blank" class="bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold px-4 py-2 rounded-lg">Buka File PDF</a>`
             );
           }
@@ -1360,40 +1363,89 @@
     }
 
     /**
-     * Cetak langsung ke printer lewat dialog cetak browser (pilih printer, jumlah salinan, dll.).
-     * Dokumen dicetak di iframe tersembunyi: ukuran A4 portrait, margin 8 mm, tanpa tampilan aplikasi.
+     * Margin cetak (mm) - SAMA di kiri, kanan, atas, dan bawah.
+     */
+    const PRINT_MARGIN_MM = 10;
+
+    /**
+     * Dijalankan DI DALAM dokumen cetak (iframe/tab): memaksa form muat tepat 1 halaman A4.
+     * Lebar isi = 210 - 2*margin, tinggi isi = 297 - 2*margin. Isi diskalakan seragam sampai
+     * tingginya pas, lalu tabel diregangkan sedikit agar sisa ruang habis -> margin 4 sisi sama.
+     */
+    function fitPrintToOnePage(marginMm) {
+      var MM = 96 / 25.4;
+      var W = (210 - 2 * marginMm) * MM;
+      var H = (297 - 2 * marginMm) * MM - 1;           // -1px: cadangan pembulatan agar tidak lahir halaman ke-2
+      var area = document.getElementById('printableArea');
+      if (!area) return;
+      var table = area.querySelector('table');
+      var lastTd = table.querySelector('tr:last-child td');   // baris catatan "*) coret..." tanpa garis: rapatkan agar margin bawah sama
+      if (lastTd) { lastTd.style.paddingTop = '0'; lastTd.style.paddingBottom = '0'; lastTd.style.verticalAlign = 'bottom'; }
+      var wrap = document.createElement('div');
+      var inner = document.createElement('div');
+      area.parentNode.insertBefore(wrap, area);
+      inner.appendChild(area);
+      wrap.appendChild(inner);
+      wrap.style.cssText = 'position:relative;overflow:hidden;width:' + W + 'px;height:' + H + 'px;';
+      area.style.cssText += ';width:100%;max-width:none;margin:0;';
+
+      function measure(z) {
+        inner.style.cssText = 'position:absolute;top:0;left:0;width:' + (W / z) + 'px;transform:scale(' + z + ');transform-origin:0 0;';
+        table.style.height = '';
+        return inner.offsetHeight * z;
+      }
+      var lo = 0.3, hi = 1.5;
+      if (measure(hi) <= H) { lo = hi; }
+      else {
+        for (var i = 0; i < 30; i++) {
+          var mid = (lo + hi) / 2;
+          if (measure(mid) <= H) lo = mid; else hi = mid;
+        }
+      }
+      measure(lo);
+      table.style.height = (H / lo) + 'px';             // regangkan agar sisa ruang vertikal habis
+    }
+
+    /**
+     * Cetak langsung ke printer lewat dialog cetak browser (pilih printer, jumlah salinan, atau
+     * "Simpan sebagai PDF"). Dokumen dicetak di iframe tersembunyi: A4 portrait, margin sama di
+     * semua sisi, dan dijamin 1 halaman.
      */
     function printHtmlDirect(innerHtml) {
       if (!innerHtml) { showStatusModal(false, 'Tidak Ada Dokumen', 'Dokumen belum siap dicetak.'); return; }
       const doc = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>PTP AF-PROD-014</title>' +
-        '<style>@page { size: A4 portrait; margin: 8mm; }' +
+        '<style>@page { size: A4 portrait; margin: ' + PRINT_MARGIN_MM + 'mm; }' +
         'html, body { margin: 0; padding: 0; background: #fff; }' +
-        '* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
-        '#printableArea { max-width: none !important; margin: 0 !important; }' +
-        'table { page-break-inside: avoid; }</style></head><body>' + innerHtml + '</body></html>';
+        '* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }</style></head><body>' +
+        innerHtml +
+        '<script>' + fitPrintToOnePage.toString() + '<\/script></body></html>';
 
       const old = document.getElementById('printFrame');
       if (old) old.remove();
       const frame = document.createElement('iframe');
       frame.id = 'printFrame';
-      frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+      frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;visibility:hidden;';
       document.body.appendChild(frame);
 
       const fdoc = frame.contentWindow.document;
       fdoc.open(); fdoc.write(doc); fdoc.close();
 
-      // Tunggu semua gambar (logo, foto, tanda tangan) selesai dimuat sebelum mencetak
+      // Tunggu semua gambar (logo, foto, tanda tangan) selesai dimuat, baru ukur & cetak
       const imgs = Array.from(fdoc.images || []);
       const ready = Promise.all(imgs.map(im => im.complete ? Promise.resolve() :
         new Promise(r => { im.onload = im.onerror = r; })));
       ready.then(() => setTimeout(() => {
         try {
+          frame.contentWindow.fitPrintToOnePage(PRINT_MARGIN_MM);
           frame.contentWindow.focus();
           frame.contentWindow.print();
         } catch (e) {
           // Cadangan: buka di tab baru lalu cetak dari sana
           const w = window.open('', '_blank');
-          if (w) { w.document.open(); w.document.write(doc); w.document.close(); w.focus(); setTimeout(() => w.print(), 400); }
+          if (w) {
+            w.document.open(); w.document.write(doc); w.document.close(); w.focus();
+            setTimeout(() => { try { w.fitPrintToOnePage(PRINT_MARGIN_MM); } catch (e2) {} w.print(); }, 400);
+          }
           else alert('Pop-up diblokir browser. Izinkan pop-up untuk situs ini lalu coba lagi.');
         }
       }, 250));
