@@ -619,7 +619,7 @@
   <!-- ===================================================================== -->
   <script>
     window.EPTP_CONFIG = {
-      APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzXRt6r0rsJzvRSEyOY_K-VwWwfoUXB-WjcSG2aAde_vGR_Tp3Ml9BmoZnuK5TahqNU/exec',
+      APPS_SCRIPT_URL: 'TEMPEL_URL_WEB_APP_APPS_SCRIPT_DI_SINI',
       SHOW_QUICK_LOGIN: false   // true hanya untuk uji coba internal; jangan aktifkan di repo publik
     };
 
@@ -947,6 +947,42 @@
       editPtpFromLog(selectedNo);
     }
 
+    function restoreFormFromJson(d) {
+      const textIds = [
+        'acuan', 'namaTtdAuditor', 'tglTtdAuditor',
+        'madeWhy1', 'madeWhy2', 'madeWhy3', 'madeWhy4', 'madeWhy5',
+        'sentWhy1', 'sentWhy2', 'sentWhy3', 'sentWhy4', 'sentWhy5',
+        'namaAuditeeProd', 'tglTtdAuditeeProd', 'namaAuditeeInsp', 'tglTtdAuditeeInsp',
+        'namaApproved', 'tglTtdApproved',
+        'tanggalEvaluasi', 'komentarVerifikasi', 'tglVerifAuditor', 'tglTmj'
+      ];
+      textIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = (d[id] === undefined || d[id] === null) ? '' : d[id];
+      });
+
+      if (d.statusEvaluasi) {
+        document.querySelectorAll('input[name="statusEvaluasi"]').forEach(r => { r.checked = (r.value === d.statusEvaluasi); });
+      }
+
+      ['made', 'sent'].forEach(type => {
+        const list = d[type + 'Actions'] || [];
+        document.getElementById(`${type}ActionsContainer`).innerHTML = '';
+        const total = Math.max(list.length, 3);
+        for (let i = 0; i < total; i++) {
+          addActionRow(type);
+          const item = list[i];
+          if (!item) continue;
+          // Nilai diisi lewat DOM (bukan template HTML) agar aman dari tanda kutip/karakter khusus
+          const container = document.getElementById(`${type}ActionsContainer`);
+          const row = container.lastElementChild;
+          row.querySelector(`.${type}-action`).value = item.action || '';
+          row.querySelector(`.${type}-pic`).value = item.pic || '';
+          row.querySelector(`.${type}-due`).value = item.due || '';
+        }
+      });
+    }
+
     function editPtpFromLog(noReg) {
       const record = ptpLogRecords.find(r => r.noReg === noReg);
       if (!record) return;
@@ -966,6 +1002,19 @@
 
       document.querySelectorAll('input[name="sumber"]').forEach(r => { r.checked = (r.value === record.sumber); });
       document.querySelectorAll('input[name="kategori"]').forEach(r => { r.checked = (r.value === record.kategori); });
+
+      // Kosongkan foto & tanda tangan lama (gambar tidak disimpan di Sheet)
+      base64FotoPart = '';
+      document.getElementById('fotoPreviewBox').innerHTML = '<span class="text-xs text-slate-400">Preview Foto</span>';
+      Object.keys(sigPads).forEach(k => clearSig(k));
+
+      // Isi kembali seluruh form dari kolom Data_JSON (jika ada)
+      if (record.dataJson) {
+        try { restoreFormFromJson(JSON.parse(record.dataJson)); }
+        catch (e) { console.warn('Data_JSON tidak dapat dibaca:', e); }
+      } else {
+        restoreFormFromJson({}); // PTP lama tanpa Data_JSON: kosongkan agar tidak tercampur data PTP sebelumnya
+      }
 
       const badge = document.getElementById('modeBadge');
       badge.textContent = `Mode: Update ${record.noReg}`;
@@ -997,6 +1046,7 @@
       const statusEvalEl = document.querySelector('input[name="statusEvaluasi"]:checked');
 
       return {
+        isNewRecord: document.getElementById('modeBadge').textContent.includes('Baru'),
         noReg: document.getElementById('noReg').value.trim(),
         tanggalTerbit: document.getElementById('tanggalTerbit').value,
         acuan: document.getElementById('acuan').value.trim(),
