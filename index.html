@@ -185,7 +185,7 @@
     </div>
 
     <!-- Navigasi 4 Tab -->
-    <div class="bg-white rounded-t-xl border-b border-slate-200 grid grid-cols-2 sm:grid-cols-4 overflow-hidden shadow-sm">
+    <div class="bg-white rounded-t-xl border-b border-slate-200 grid grid-cols-2 sm:grid-cols-5 overflow-hidden shadow-sm">
       <button type="button" id="tabBtn1" onclick="switchTab(1)" class="tab-btn active py-3 px-2 text-xs sm:text-sm flex items-center justify-center gap-1.5 transition">
         <span class="w-5 h-5 rounded-full bg-blue-900 text-white text-[11px] flex items-center justify-center">1</span>
         <span>Temuan Awal</span>
@@ -201,6 +201,10 @@
       <button type="button" id="tabBtn4" onclick="switchTab(4)" class="tab-btn py-3 px-2 text-xs sm:text-sm text-slate-600 flex items-center justify-center gap-1.5 transition">
         <i data-lucide="list-checks" class="w-4 h-4"></i>
         <span>Log Register (<span id="logTotalBadge">0</span>)</span>
+      </button>
+      <button type="button" id="tabBtn5" onclick="switchTab(5)" class="tab-btn py-3 px-2 text-xs sm:text-sm text-slate-600 flex items-center justify-center gap-1.5 transition">
+        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+        <span>Dashboard</span>
       </button>
     </div>
 
@@ -249,10 +253,10 @@
                 <input type="radio" name="sumber" value="Audit Internal" class="accent-blue-900" /> Audit Internal
               </label>
               <label class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-slate-50">
-                <input type="radio" name="sumber" value="Claim Customer" class="accent-blue-900" /> Claim Customer
+                <input type="radio" name="sumber" value="Complaint / Claim Customer" class="accent-blue-900" /> Complaint / Claim Customer
               </label>
               <label class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-slate-50">
-                <input type="radio" name="sumber" value="Riject Internal" checked class="accent-blue-900" /> Riject Internal
+                <input type="radio" name="sumber" value="Reject Internal" checked class="accent-blue-900" /> Reject Internal
               </label>
               <label class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-slate-50">
                 <input type="radio" name="sumber" value="Audit External" class="accent-blue-900" /> Audit External
@@ -286,7 +290,7 @@
                 <input type="radio" name="kategori" value="OBSERVASI" class="accent-blue-900" /> OBSERVASI
               </label>
             </div>
-            <p class="text-[11px] text-slate-400 mt-3">* Kosongkan pilihan kategori jika sumber berasal dari Riject Internal atau Claim Customer.</p>
+            <p class="text-[11px] text-slate-400 mt-3">* Kosongkan pilihan kategori jika sumber berasal dari Reject Internal atau Complaint / Claim Customer.</p>
           </div>
         </div>
 
@@ -519,10 +523,10 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
             <h3 class="text-sm font-bold text-blue-950">Log Register Permintaan Tindakan Perbaikan (PTP)</h3>
-            <p class="text-xs text-slate-500">Pantau seluruh nomor PTP yang terbit beserta status penyelesaiannya (Open / Closed).</p>
+            <p class="text-xs text-slate-500">Pantau seluruh nomor PTP yang terbit beserta status penyelesaiannya (On Progress / Closed).</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <span id="statOpenBadge" class="bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold px-2.5 py-1 rounded-full">Open: 0</span>
+            <span id="statOpenBadge" class="bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold px-2.5 py-1 rounded-full">On Progress: 0</span>
             <span id="statClosedBadge" class="bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold px-2.5 py-1 rounded-full">Closed: 0</span>
             <a id="openSheetsLogBtn" href="#" target="_blank" class="hidden bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1">
               <i data-lucide="sheet" class="w-3.5 h-3.5"></i> Buka Google Sheets
@@ -543,8 +547,8 @@
           </div>
           <div>
             <select id="logStatusFilter" onchange="renderLogRegisterTable()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold bg-white">
-              <option value="ALL">Semua Status (Open & Closed)</option>
-              <option value="OPEN">Belum Close (Open)</option>
+              <option value="ALL">Semua Status (On Progress & Closed)</option>
+              <option value="OPEN">Belum Close (On Progress)</option>
               <option value="CLOSED">Sudah Close (Closed)</option>
             </select>
           </div>
@@ -574,6 +578,71 @@
       </div>
 
       <!-- =================================================================== -->
+      <!-- TAB 5: DASHBOARD PTP (CLOSED vs ON PROGRESS)                        -->
+      <!-- =================================================================== -->
+      <div id="step5" class="hidden space-y-5">
+        <div class="flex items-center justify-between gap-3 pb-3 border-b border-slate-200">
+          <div>
+            <h3 class="text-sm font-bold text-blue-950">Dashboard PTP</h3>
+            <p class="text-xs text-slate-500">Ringkasan PTP yang sudah Closed dan yang masih On Progress.</p>
+          </div>
+          <button type="button" onclick="initAppMetadata()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4"><p class="text-[11px] font-semibold text-slate-500">Total PTP</p><p id="dashTotal" class="text-3xl font-extrabold text-blue-950">0</p></div>
+          <div class="rounded-xl border border-amber-200 bg-amber-50 p-4"><p class="text-[11px] font-semibold text-amber-700">On Progress</p><p id="dashProgress" class="text-3xl font-extrabold text-amber-700">0</p></div>
+          <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4"><p class="text-[11px] font-semibold text-emerald-700">Closed</p><p id="dashClosed" class="text-3xl font-extrabold text-emerald-700">0</p></div>
+          <div class="rounded-xl border border-blue-200 bg-blue-50 p-4"><p class="text-[11px] font-semibold text-blue-700">Rata-rata umur On Progress</p><p class="text-3xl font-extrabold text-blue-900"><span id="dashAvgAge">0</span> <span class="text-sm font-semibold">hari</span></p></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="border border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center">
+            <h4 class="text-xs font-bold text-slate-700 mb-3 self-start">Tingkat Penyelesaian</h4>
+            <div class="relative w-36 h-36">
+              <svg viewBox="0 0 42 42" class="w-36 h-36 -rotate-90">
+                <circle cx="21" cy="21" r="15.915" fill="none" stroke="#fde68a" stroke-width="6"></circle>
+                <circle id="dashDonut" cx="21" cy="21" r="15.915" fill="none" stroke="#10b981" stroke-width="6" stroke-dasharray="0 100"></circle>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center"><span id="dashPct" class="text-2xl font-extrabold text-slate-800">0%</span><span class="text-[10px] text-slate-500">Closed</span></div>
+            </div>
+            <div class="flex gap-3 mt-3 text-[11px] text-slate-600"><span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block"></i>Closed</span><span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-sm bg-amber-300 inline-block"></i>On Progress</span></div>
+          </div>
+
+          <div class="border border-slate-200 rounded-xl p-4 md:col-span-2">
+            <h4 class="text-xs font-bold text-slate-700 mb-3">PTP Terbit per Bulan (6 bulan terakhir)</h4>
+            <div id="dashMonthly" class="flex items-end gap-3 h-40"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="border border-slate-200 rounded-xl p-4">
+            <h4 class="text-xs font-bold text-slate-700 mb-3">Berdasarkan Sumber Ketidaksesuaian</h4>
+            <div id="dashSumber" class="space-y-2.5"></div>
+          </div>
+          <div class="border border-slate-200 rounded-xl p-4">
+            <h4 class="text-xs font-bold text-slate-700 mb-3">On Progress per Auditee (Top 5)</h4>
+            <div id="dashAuditee" class="space-y-2.5"></div>
+          </div>
+        </div>
+
+        <div class="border border-amber-200 rounded-xl overflow-hidden">
+          <div class="bg-amber-50 px-4 py-2.5 flex items-center justify-between">
+            <h4 class="text-xs font-bold text-amber-800">PTP On Progress (terlama di atas)</h4>
+            <span class="text-[11px] text-amber-700">Umur: <b class="text-amber-700">&gt; 14 hari</b> kuning, <b class="text-rose-600">&gt; 30 hari</b> merah</span>
+          </div>
+          <div class="overflow-x-auto"><table class="w-full text-xs text-left"><thead><tr class="bg-slate-50 text-slate-600"><th class="p-2.5">No. Reg. PTP</th><th class="p-2.5">Tanggal</th><th class="p-2.5">Auditee</th><th class="p-2.5">Part</th><th class="p-2.5 text-center">Umur</th><th class="p-2.5 text-center">Aksi</th></tr></thead><tbody id="dashProgressBody" class="divide-y divide-slate-100"></tbody></table></div>
+        </div>
+
+        <div class="border border-emerald-200 rounded-xl overflow-hidden">
+          <div class="bg-emerald-50 px-4 py-2.5"><h4 class="text-xs font-bold text-emerald-800">PTP Closed (terbaru di atas)</h4></div>
+          <div class="overflow-x-auto"><table class="w-full text-xs text-left"><thead><tr class="bg-slate-50 text-slate-600"><th class="p-2.5">No. Reg. PTP</th><th class="p-2.5">Tanggal</th><th class="p-2.5">Auditee</th><th class="p-2.5">Part</th><th class="p-2.5 text-center">Tgl Update</th><th class="p-2.5 text-center">Aksi</th></tr></thead><tbody id="dashClosedBody" class="divide-y divide-slate-100"></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- =================================================================== -->
       <!-- PANEL TOMBOL TERPISAH: SIMPAN, PRINT PREVIEW, DAN PRINT PDF         -->
       <!-- =================================================================== -->
       <div id="actionButtonsBar" class="mt-6 pt-5 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-end gap-3">
@@ -582,9 +651,6 @@
         </button>
         <button type="button" onclick="executePtpAction('PREVIEW')" class="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold px-5 py-3 rounded-xl shadow-sm flex items-center justify-center gap-2 transition">
           <i data-lucide="eye" class="w-4 h-4"></i> Print Preview
-        </button>
-        <button type="button" onclick="executePtpAction('PRINT')" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-3 rounded-xl shadow-sm flex items-center justify-center gap-2 transition">
-          <i data-lucide="printer" class="w-4 h-4"></i> Cetak ke Printer
         </button>
         <button type="button" onclick="executePtpAction('PDF')" class="w-full sm:w-auto bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold px-6 py-3 rounded-xl shadow-sm flex items-center justify-center gap-2 transition">
           <i data-lucide="file-down" class="w-4 h-4"></i> Print PDF
@@ -605,7 +671,6 @@
       <div id="previewModalBody" class="p-4 overflow-y-auto bg-slate-200 flex-1"></div>
       <div class="px-5 py-3 bg-slate-50 border-t flex justify-end gap-2">
         <button type="button" onclick="closePreviewModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold px-4 py-2 rounded-lg">Tutup</button>
-        <button type="button" onclick="printHtmlDirect(document.getElementById('previewModalBody').innerHTML)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2 rounded-lg">Cetak ke Printer</button>
         <button type="button" onclick="closePreviewModal(); executePtpAction('PDF');" class="bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold px-5 py-2 rounded-lg">Cetak PDF Sekarang</button>
       </div>
     </div>
@@ -842,12 +907,13 @@
     }
 
     function switchTab(stepNum) {
-      [1, 2, 3, 4].forEach(n => {
+      [1, 2, 3, 4, 5].forEach(n => {
         document.getElementById(`step${n}`).classList.toggle('hidden', n !== stepNum);
         const btn = document.getElementById(`tabBtn${n}`);
         if (btn) btn.classList.toggle('active', n === stepNum);
       });
-      document.getElementById('actionButtonsBar').classList.toggle('hidden', stepNum === 4);
+      document.getElementById('actionButtonsBar').classList.toggle('hidden', stepNum === 4 || stepNum === 5);
+      if (stepNum === 5) renderDashboard();
       setTimeout(resizeAllCanvases, 50);
     }
 
@@ -1066,7 +1132,17 @@
       });
     }
 
-    function editPtpFromLog(noReg) {
+    function normSumber(v) {
+      v = String(v || '');
+      if (v === 'Riject Internal') return 'Reject Internal';
+      if (v === 'Claim Customer') return 'Complaint / Claim Customer';
+      return v;
+    }
+    function escH(v) {
+      return String(v === null || v === undefined ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function editPtpFromLog(noReg, startTab) {
       const record = ptpLogRecords.find(r => r.noReg === noReg);
       if (!record) return;
 
@@ -1083,7 +1159,7 @@
       document.getElementById('qtyNg').value = record.qtyNg !== '-' ? record.qtyNg : '';
       document.getElementById('hasilSortir').value = record.hasilSortir !== '-' ? record.hasilSortir : '';
 
-      document.querySelectorAll('input[name="sumber"]').forEach(r => { r.checked = (r.value === record.sumber); });
+      document.querySelectorAll('input[name="sumber"]').forEach(r => { r.checked = (r.value === normSumber(record.sumber)); });
       document.querySelectorAll('input[name="kategori"]').forEach(r => { r.checked = (r.value === record.kategori); });
 
       // Kosongkan foto & tanda tangan lama (gambar tidak disimpan di Sheet)
@@ -1102,7 +1178,7 @@
       const badge = document.getElementById('modeBadge');
       badge.textContent = `Mode: Update ${record.noReg}`;
       badge.className = 'bg-emerald-400 text-slate-950 font-bold px-2.5 py-1 rounded-full';
-      switchTab(2);
+      switchTab(startTab || 2);
     }
 
     function resetFormToNew() {
@@ -1188,14 +1264,12 @@
 
     function executePtpAction(actionType) {
       const payload = collectFormData();
-      // PRINT = cetak langsung ke printer: server cukup membuat HTML (aksi PREVIEW), lalu browser mencetaknya
-      const directPrint = (actionType === 'PRINT');
-      const serverAction = directPrint ? 'PREVIEW' : actionType;
+      const directPrint = false;   // fitur "Cetak ke Printer" dihapus
+      const serverAction = actionType;
       if (serverAction === 'PREVIEW') payload.refFilesNew = [];
       const titleMap = {
         SAVE: 'Menyimpan Data PTP...',
         PREVIEW: 'Menyiapkan Print Preview...',
-        PRINT: 'Menyiapkan Dokumen untuk Printer...',
         PDF: 'Mencetak Dokumen PDF PTP...'
       };
       showStatusModal(true, titleMap[actionType], 'Mohon tunggu sebentar, sedang terhubung ke Google Workspace.');
@@ -1226,7 +1300,7 @@
             initAppMetadata();
             const pageNote = (res.pdfPages === 1) ? ' (1 halaman).' :
               ' PERHATIAN: mesin PDF Google menghasilkan ' + (res.pdfPages || 'jumlah tidak diketahui') +
-              ' halaman. Untuk hasil 1 halaman dengan margin rata, gunakan tombol "Cetak ke Printer" lalu pilih "Simpan sebagai PDF".';
+              ' halaman. Silakan cek file PDF-nya.';
             showStatusModal(
               false,
               'PDF PTP Berhasil Dicetak!',
@@ -1251,8 +1325,9 @@
 
       document.getElementById('logTotalBadge').textContent = ptpLogRecords.length;
       document.getElementById('headerLogCount').textContent = ptpLogRecords.length;
-      document.getElementById('statOpenBadge').textContent = `Open: ${openCount}`;
+      document.getElementById('statOpenBadge').textContent = `On Progress: ${openCount}`;
       document.getElementById('statClosedBadge').textContent = `Closed: ${closedCount}`;
+      renderDashboard();
 
       const filtered = ptpLogRecords.filter(item => {
         const isClosed = item.status.toLowerCase().includes('closed');
@@ -1272,11 +1347,12 @@
         return;
       }
 
+      const canDelete = !!(currentUser && currentUser.role === 'AUDITOR');
       tbody.innerHTML = filtered.map(item => {
         const isClosed = item.status.toLowerCase().includes('closed');
         const badgeHtml = isClosed
           ? '<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-2.5 py-0.5 rounded-full text-[11px]">&#10003; SUDAH CLOSE</span>'
-          : `<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 border border-amber-300 font-bold px-2.5 py-0.5 rounded-full text-[11px]">&#9679; BELUM CLOSE (${item.status || 'OPEN'})</span>`;
+          : '<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 border border-amber-300 font-bold px-2.5 py-0.5 rounded-full text-[11px]">&#9679; ON PROGRESS</span>';
 
         const pdfBtn = item.pdfUrl
           ? `<a href="${item.pdfUrl}" target="_blank" class="bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold px-2 py-1 rounded text-[11px]">PDF</a>`
@@ -1288,7 +1364,7 @@
             <td class="p-2.5 whitespace-nowrap text-slate-600">${item.tanggalTerbit || '-'}</td>
             <td class="p-2.5">
               <div class="font-semibold text-slate-800">${item.auditee}</div>
-              <div class="text-[11px] text-slate-500">${item.sumber} (${item.lokasi})</div>
+              <div class="text-[11px] text-slate-500">${escH(normSumber(item.sumber))} (${escH(item.lokasi)})</div>
             </td>
             <td class="p-2.5 max-w-xs">
               <div class="font-semibold text-slate-800">${item.partName} <span class="font-normal text-slate-500">(${item.partNo})</span></div>
@@ -1297,12 +1373,102 @@
             <td class="p-2.5 text-center whitespace-nowrap">${badgeHtml}</td>
             <td class="p-2.5 text-center whitespace-nowrap text-[11px] text-slate-500">${item.lastUpdated || '-'}</td>
             <td class="p-2.5 text-center whitespace-nowrap space-x-1">
-              <button type="button" onclick="editPtpFromLog('${item.noReg}')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold px-2 py-1 rounded text-[11px]">Update</button>
+              <button type="button" onclick="editPtpFromLog('${item.noReg}', 1)" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold px-2 py-1 rounded text-[11px]">Edit</button>
               ${pdfBtn}
+              ${canDelete ? `<button type="button" onclick="deletePtpFromLog('${item.noReg}')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-2 py-1 rounded text-[11px]">Hapus</button>` : ''}
             </td>
           </tr>
         `;
       }).join('');
+    }
+
+    function deletePtpFromLog(noReg) {
+      if (!currentUser || currentUser.role !== 'AUDITOR') { showStatusModal(false, 'Tidak Diizinkan', 'Hanya akun QA / Auditor yang boleh menghapus PTP.'); return; }
+      if (!confirm('Hapus PTP ' + noReg + ' dari Log Register?\n\nData di database akan hilang permanen (file PDF di Google Drive tidak ikut terhapus).')) return;
+      if (typeof google === 'undefined' || !google.script || !google.script.run) { showStatusModal(false, 'Mode Lokal', 'Backend belum terhubung.'); return; }
+      showStatusModal(true, 'Menghapus PTP...', 'Mohon tunggu sebentar.');
+      google.script.run
+        .withSuccessHandler(res => {
+          if (document.getElementById('noReg').value.trim() === noReg) resetFormToNew(); else initAppMetadata();
+          showStatusModal(false, 'Terhapus', (res && res.message) || 'PTP berhasil dihapus.');
+        })
+        .withFailureHandler(err => showStatusModal(false, 'Gagal Menghapus', err.message || String(err)))
+        .deletePtp(noReg);
+    }
+
+    // ===== DASHBOARD =====
+    function renderDashboard() {
+      const box = document.getElementById('dashTotal');
+      if (!box) return;
+      const isClosed = r => String(r.status || '').toLowerCase().includes('closed');
+      const closed = ptpLogRecords.filter(isClosed);
+      const prog = ptpLogRecords.filter(r => !isClosed(r));
+      const total = ptpLogRecords.length;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const ageOf = r => {
+        const d = new Date((r.tanggalTerbit || '') + 'T00:00:00');
+        return isNaN(d) ? null : Math.max(0, Math.floor((today - d) / 86400000));
+      };
+
+      document.getElementById('dashTotal').textContent = total;
+      document.getElementById('dashProgress').textContent = prog.length;
+      document.getElementById('dashClosed').textContent = closed.length;
+      const ages = prog.map(ageOf).filter(a => a !== null);
+      document.getElementById('dashAvgAge').textContent = ages.length ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : 0;
+      const pct = total ? Math.round(closed.length / total * 100) : 0;
+      document.getElementById('dashPct').textContent = pct + '%';
+      document.getElementById('dashDonut').setAttribute('stroke-dasharray', (total ? closed.length / total * 100 : 0) + ' 100');
+
+      // Per bulan (6 bulan terakhir)
+      const months = [];
+      for (let i = 5; i >= 0; i--) { const d = new Date(today.getFullYear(), today.getMonth() - i, 1); months.push({ key: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), label: d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }), c: 0, p: 0 }); }
+      ptpLogRecords.forEach(r => { const m = months.find(x => x.key === String(r.tanggalTerbit || '').substring(0, 7)); if (m) { if (isClosed(r)) m.c++; else m.p++; } });
+      const maxM = Math.max(1, ...months.map(m => m.c + m.p));
+      document.getElementById('dashMonthly').innerHTML = months.map(m => {
+        const hc = m.c / maxM * 100, hp = m.p / maxM * 100;
+        return `<div class="flex-1 flex flex-col items-center justify-end h-full">
+          <span class="text-[10px] font-bold text-slate-600 mb-1">${m.c + m.p || ''}</span>
+          <div class="w-full max-w-[44px] flex flex-col justify-end" style="height:75%">
+            <div class="bg-amber-300 rounded-t" style="height:${hp}%" title="On Progress: ${m.p}"></div>
+            <div class="bg-emerald-500" style="height:${hc}%" title="Closed: ${m.c}"></div>
+          </div>
+          <span class="text-[10px] text-slate-500 mt-1">${escH(m.label)}</span></div>`;
+      }).join('');
+
+      // Per sumber
+      const bySrc = {};
+      ptpLogRecords.forEach(r => { const k = normSumber(r.sumber) || '-'; (bySrc[k] = bySrc[k] || { c: 0, p: 0 }); if (isClosed(r)) bySrc[k].c++; else bySrc[k].p++; });
+      const srcRows = Object.entries(bySrc).sort((a, b) => (b[1].c + b[1].p) - (a[1].c + a[1].p));
+      const maxS = Math.max(1, ...srcRows.map(([, v]) => v.c + v.p));
+      document.getElementById('dashSumber').innerHTML = srcRows.length ? srcRows.map(([k, v]) =>
+        `<div><div class="flex justify-between text-[11px] text-slate-600 mb-0.5"><span class="font-semibold">${escH(k)}</span><span>${v.p} On Progress &bull; ${v.c} Closed</span></div>
+         <div class="flex h-2.5 rounded bg-slate-100 overflow-hidden" style="width:${(v.c + v.p) / maxS * 100}%"><div class="bg-emerald-500" style="width:${v.c / (v.c + v.p) * 100}%"></div><div class="bg-amber-300 flex-1"></div></div></div>`).join('')
+        : '<p class="text-xs text-slate-400">Belum ada data.</p>';
+
+      // On Progress per auditee
+      const byAud = {};
+      prog.forEach(r => { const k = r.auditee && r.auditee !== '-' ? r.auditee : '(tanpa auditee)'; byAud[k] = (byAud[k] || 0) + 1; });
+      const audRows = Object.entries(byAud).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const maxA = Math.max(1, ...audRows.map(a => a[1]));
+      document.getElementById('dashAuditee').innerHTML = audRows.length ? audRows.map(([k, n]) =>
+        `<div><div class="flex justify-between text-[11px] text-slate-600 mb-0.5"><span class="font-semibold">${escH(k)}</span><span>${n}</span></div>
+         <div class="h-2.5 rounded bg-slate-100 overflow-hidden"><div class="h-full bg-amber-400" style="width:${n / maxA * 100}%"></div></div></div>`).join('')
+        : '<p class="text-xs text-slate-400">Tidak ada PTP On Progress.</p>';
+
+      const actions = r => `<button type="button" onclick="editPtpFromLog('${escH(r.noReg)}', 1)" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold px-2 py-1 rounded text-[11px]">Buka</button>` +
+        (r.pdfUrl ? ` <a href="${escH(r.pdfUrl)}" target="_blank" rel="noopener" class="bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold px-2 py-1 rounded text-[11px]">PDF</a>` : '');
+      const partCell = r => `<div class="font-semibold text-slate-800">${escH(r.partName)}</div><div class="text-[11px] text-slate-500 truncate max-w-[220px]" title="${escH(r.problem)}">${escH(r.problem)}</div>`;
+
+      const progSorted = prog.slice().sort((a, b) => String(a.tanggalTerbit).localeCompare(String(b.tanggalTerbit)));
+      document.getElementById('dashProgressBody').innerHTML = progSorted.length ? progSorted.map(r => {
+        const a = ageOf(r);
+        const cls = a === null ? 'bg-slate-100 text-slate-600' : a > 30 ? 'bg-rose-100 text-rose-700' : a > 14 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-50 text-emerald-700';
+        return `<tr><td class="p-2.5 font-mono font-bold text-blue-900 whitespace-nowrap">${escH(r.noReg)}</td><td class="p-2.5 whitespace-nowrap">${escH(r.tanggalTerbit || '-')}</td><td class="p-2.5">${escH(r.auditee)}</td><td class="p-2.5">${partCell(r)}</td><td class="p-2.5 text-center"><span class="px-2 py-0.5 rounded-full font-bold text-[11px] ${cls}">${a === null ? '-' : a + ' hr'}</span></td><td class="p-2.5 text-center whitespace-nowrap">${actions(r)}</td></tr>`;
+      }).join('') : '<tr><td colspan="6" class="p-4 text-center text-slate-400">Tidak ada PTP On Progress.</td></tr>';
+
+      document.getElementById('dashClosedBody').innerHTML = closed.length ? closed.map(r =>
+        `<tr><td class="p-2.5 font-mono font-bold text-blue-900 whitespace-nowrap">${escH(r.noReg)}</td><td class="p-2.5 whitespace-nowrap">${escH(r.tanggalTerbit || '-')}</td><td class="p-2.5">${escH(r.auditee)}</td><td class="p-2.5">${partCell(r)}</td><td class="p-2.5 text-center whitespace-nowrap text-[11px] text-slate-500">${escH(r.lastUpdated || '-')}</td><td class="p-2.5 text-center whitespace-nowrap">${actions(r)}</td></tr>`
+      ).join('') : '<tr><td colspan="6" class="p-4 text-center text-slate-400">Belum ada PTP Closed.</td></tr>';
     }
 
     function printLogRegister() {
@@ -1407,6 +1573,7 @@
     }
 
     /**
+     * (TIDAK DIPAKAI SAAT INI - tombol Cetak ke Printer sudah dihapus; dibiarkan jika sewaktu-waktu dibutuhkan.)
      * Cetak langsung ke printer lewat dialog cetak browser (pilih printer, jumlah salinan, atau
      * "Simpan sebagai PDF"). Dokumen dicetak di iframe tersembunyi: A4 portrait, margin sama di
      * semua sisi, dan dijamin 1 halaman.
